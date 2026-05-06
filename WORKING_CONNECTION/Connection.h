@@ -1,4 +1,8 @@
-#ifndef connection_h
-#define connection_h
+#pragma once
+#include "BLEDevice.h"
 
-#endif
+// Call once in setup()
+void Connection_init();
+
+// Call every loop() iteration
+void Connection_update();
