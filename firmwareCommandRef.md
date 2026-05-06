@@ -1,12 +1,6 @@
-Got you. Here is the **clean, copy‑paste‑ready Markdown**, with **no extra chatter**, **no UI elements**, and **every command grouped, labeled, and formatted** so you can drop it straight into a README or reference doc.
-
----
 
 # GymNext Timer BLE Command Reference
 
-_All commands extracted from the provided source. Each entry includes prefix, purpose, and an example._
-
----
 
 ## 1. System / Device Control
 
@@ -180,12 +174,3 @@ _All commands extracted from the provided source. Each entry includes prefix, pu
 | `$$$$` | Replaced with seconds since midnight UTC |
 | `####` | Replaced with adjusted seed time |
 
----
-
-If you want, I can also generate:
-
-- a **compact cheat sheet**,  
-- a **JSON schema**,  
-- or a **code‑ready enum + lookup table** for your SDK.
-
-Just tell me what format you want next.
