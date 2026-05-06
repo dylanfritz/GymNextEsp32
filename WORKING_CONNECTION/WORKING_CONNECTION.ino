@@ -186,7 +186,7 @@ void loop() {
 
     // 2) Send WM? (welcome message)
     {
-      const char* wmCmd = "WM?HELL0_W0RLD;"; // example from your nRF log
+      const char* wmCmd = "WM?p00p;"; // example from your nRF log
       Serial.print("Sending WM: ");
       Serial.println(wmCmd);
 
