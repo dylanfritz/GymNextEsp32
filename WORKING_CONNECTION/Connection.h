@@ -9,3 +9,6 @@ void Connection_init();
 void Connection_update();
 
 void Connection_enqueue(std::string payload, unsigned long delayMs = 0);
+
+bool Connection_isConnected();
+bool queueEmpty();

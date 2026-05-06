@@ -146,6 +146,14 @@ void Connection_init() {
   pBLEScan->start(60, false);
 }
 
+bool queueEmpty(){
+    return commands.empty();
+}
+
+bool Connection_isConnected(){
+    return connected;
+}
+
 void Connection_update() {
   if (doConnect) {
     if (connectToServer()) Serial.println("Connected to BLE server.");
