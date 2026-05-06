@@ -1,4 +1,6 @@
 #include "Connection.h"
+#include <string>
+#include <queue>
 
 // ── UUIDs ────────────────────────────────────────────────────────────────────
 static BLEUUID serviceUUID("028c8db0-fb17-11e4-a322-1697f925ec7b");
@@ -9,13 +11,23 @@ static BLEUUID ncharUUID  ("028c8db1-fb17-11e4-a322-1697f925ec7b"); // NOTIFY
 static bool doConnect    = false;
 static bool connected    = false;
 static bool doScan       = false;
-static bool sentCommands = false;
 
-static BLERemoteCharacteristic* pWriteChar = nullptr;
+static BLEClient*               pClient     = nullptr;
+static BLERemoteCharacteristic* pWriteChar  = nullptr;
 static BLERemoteCharacteristic* pNotifyChar = nullptr;
 static BLEAdvertisedDevice*     myDevice    = nullptr;
 
 volatile static bool gotInit = false;
+
+struct Command {
+    std::string body;
+    unsigned long delayMs;
+
+    Command(std::string b) : body(b), delayMs(0) {}
+    Command(std::string b, unsigned long d) : body(b), delayMs(d) {}
+};
+
+static std::queue<Command> commands;
 
 // ── Notify callback ──────────────────────────────────────────────────────────
 static void notifyCallback(BLERemoteCharacteristic* pChr,
@@ -34,8 +46,15 @@ static void notifyCallback(BLERemoteCharacteristic* pChr,
 
 // ── Client callbacks ─────────────────────────────────────────────────────────
 class MyClientCallback : public BLEClientCallbacks {
-  void onConnect(BLEClient*) override    { Serial.println("Client connected"); }
-  void onDisconnect(BLEClient*) override { connected = false; Serial.println("onDisconnect"); }
+  void onConnect(BLEClient*) override { Serial.println("Client connected"); }
+  void onDisconnect(BLEClient*) override {
+    connected   = false;
+    pWriteChar  = nullptr;
+    pNotifyChar = nullptr;
+    while (!commands.empty()) commands.pop();
+    Serial.println("onDisconnect - will restart scan");
+    doScan = true;
+  }
 };
 
 // ── Scan callback ─────────────────────────────────────────────────────────────
@@ -50,9 +69,10 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
 
       Serial.println(" - Target found, stopping scan");
       BLEDevice::getScan()->stop();
+      delete myDevice;
       myDevice  = new BLEAdvertisedDevice(advertisedDevice);
       doConnect = true;
-      doScan    = true;
+      doScan    = false;
     }
   }
 };
@@ -64,8 +84,10 @@ static bool connectToServer() {
   Serial.print("Connecting to ");
   Serial.println(myDevice->getAddress().toString().c_str());
 
-  BLEClient* pClient = BLEDevice::createClient();
-  pClient->setClientCallbacks(new MyClientCallback());
+  if (pClient == nullptr) {
+    pClient = BLEDevice::createClient();
+    pClient->setClientCallbacks(new MyClientCallback());
+  }
 
   if (!pClient->connect(myDevice)) {
     Serial.println(" - Failed to connect");
@@ -74,7 +96,11 @@ static bool connectToServer() {
   Serial.println(" - Connected");
 
   BLERemoteService* pService = pClient->getService(serviceUUID);
-  if (!pService) { pClient->disconnect(); return false; }
+  if (!pService) {
+    Serial.println(" - Failed to find service");
+    pClient->disconnect();
+    return false;
+  }
 
   pWriteChar  = pService->getCharacteristic(wcharUUID);
   pNotifyChar = pService->getCharacteristic(ncharUUID);
@@ -98,8 +124,13 @@ static bool connectToServer() {
 
   Serial.println(gotInit ? " - Got notify" : " - No notify yet, continuing");
 
-  connected    = true;
-  sentCommands = false; // allow commands to fire after reconnect too
+  connected = true;
+
+  Connection_enqueue("FM?3,CONNEC", 3000);
+  Connection_enqueue("ME");
+  for (int i = 0; i < 10; i++) {
+    Connection_enqueue("XM?0000" + std::to_string(i));
+  }
   return true;
 }
 
@@ -122,23 +153,37 @@ void Connection_update() {
     doConnect = false;
   }
 
-  if (connected && !sentCommands && pWriteChar) {
-    sentCommands = true;
-    delay(200);
+  if (connected && pWriteChar && !commands.empty()) {
+    Command curr = commands.front();
+    commands.pop();
 
-    const char* fmCmd = "FM?3,CONNEC;";
-    Serial.print("Sending FM: "); Serial.println(fmCmd);
-    pWriteChar->writeValue((uint8_t*)fmCmd, strlen(fmCmd), false);
-    delay(200);
+    Serial.print("Sending Command: ");
+    Serial.println(curr.body.c_str());
+    pWriteChar->writeValue((uint8_t*)curr.body.c_str(), curr.body.length(), false);
 
-    const char* wmCmd = "WM?p00p;";
-    Serial.print("Sending WM: "); Serial.println(wmCmd);
-    pWriteChar->writeValue((uint8_t*)wmCmd, strlen(wmCmd), false);
-
-    Serial.println("Commands sent.");
+    if (curr.delayMs > 0) delay(curr.delayMs);
   }
 
   if (!connected && doScan) {
-    BLEDevice::getScan()->start(0);
+    doScan = false;
+    BLEDevice::getScan()->clearResults();
+    BLEDevice::getScan()->start(0, false);
+  }
+}
+
+void Connection_enqueue(std::string payload, unsigned long delayMs) {
+  std::string body = payload.back() == ';' ? payload : payload + ";";
+  size_t len = body.length();
+  size_t i = 0;
+
+  while (len > 0) {
+    size_t chunkSize = (len >= 20) ? 20 : len;
+    std::string chunk = body.substr(i, chunkSize);
+
+    unsigned long chunkDelay = (len <= 20) ? delayMs : 0;
+    commands.push(Command(chunk, chunkDelay));
+
+    i += chunkSize;
+    len -= chunkSize;
   }
 }

@@ -8,5 +8,4 @@ void setup() {
 
 void loop() {
   Connection_update();
-  delay(100);
 }
