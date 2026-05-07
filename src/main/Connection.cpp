@@ -195,3 +195,10 @@ void Connection_enqueue(std::string payload, unsigned long delayMs) {
     len -= chunkSize;
   }
 }
+
+void clearQueue() {
+  while (!commands.empty()) commands.pop();
+}
+int queueLen(){
+  return commands.size();
+}

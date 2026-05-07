@@ -12,3 +12,5 @@ void Connection_enqueue(std::string payload, unsigned long delayMs = 0);
 
 bool Connection_isConnected();
 bool queueEmpty();
+void clearQueue();
+int queueLen();

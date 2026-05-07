@@ -1,14 +1,8 @@
 #include "Connection.h"
 #include <string>
-void serialInput(){
-  if (Serial.available() > 0) {
-    String input = Serial.readString(); // Read full string
-    input.trim();                       // Remove \n or \r if present
-    Serial.print("Received: ");
-    Serial.println(input);
-    Connection_enqueue("XM?"+ std::string(input.c_str()));
-  }
-}
+
+bool manual_override = false;
+std::string current_msg = "Hello_World";
 
 void scrollText(std::string inp, unsigned long scroll_del){
   std::string padded_text = "      " + inp + "      ";
@@ -16,6 +10,49 @@ void scrollText(std::string inp, unsigned long scroll_del){
     Connection_enqueue("XM?"+ padded_text.substr(i, 6), scroll_del); 
   }
 }
+
+void serialInput(){
+  static bool change_msg = false;
+  
+  if (Serial.available() > 0) {
+    String input = Serial.readString();
+    input.trim();
+    Serial.print("Received: ");
+    Serial.println(input);
+
+    if (change_msg) {
+      current_msg = std::string(input.c_str());
+      change_msg = false;
+      Connection_enqueue("XM?SET", 1000);
+      scrollText(current_msg, 200);
+      Connection_enqueue("XM?     _");
+    } else if (input == "<CHGMSG>" && manual_override) {
+      Connection_enqueue("XM?CHGMSG", 1000);
+      change_msg = true;
+    } else if (input == "<INSPQ>" && manual_override){
+      Connection_enqueue("XM? INSPQ", 1000);
+      Connection_enqueue("XM?" + std::to_string(queueLen()), 1000);
+      Connection_enqueue("XM?     _", 1000);
+    } else if (input == "<FORCEADMIN>"){
+      manual_override = true;
+      clearQueue();
+      Connection_enqueue("XM?ADMIN", 1000);
+      Connection_enqueue("XM?     _");
+    } else if (input == "<ADMIN>") {
+      manual_override = true;
+      Connection_enqueue("XM?ADMIN", 1000);
+      Connection_enqueue("XM?     _");
+    } else if (input == "<Release>") {
+      Connection_enqueue("ME");
+      Connection_enqueue("XM?Releas", 1000);
+      manual_override = false;
+    } else {
+      Connection_enqueue(std::string(input.c_str()));
+    }
+  }
+}
+
+
 
 void bounceText(std::string inp, unsigned long scroll_del){
   std::string padded_text = "     " + inp + "     ";
@@ -54,8 +91,8 @@ void setup() {
 
 void loop() {
   serialInput();
-  if (queueEmpty()&&Connection_isConnected()) {
-    scrollText("scroll this text", 400);
+  if (queueEmpty()&&Connection_isConnected()&&!manual_override) {
+    scrollText(current_msg, 200);
   }
   Connection_update();
 }
