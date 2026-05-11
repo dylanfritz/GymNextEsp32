@@ -154,11 +154,8 @@ static bool connectToServer() {
   globalState->manual_override = false;
 
   Connection_enqueue("ME");
-  Connection_enqueue("XM?CONNEC", 2000);
+  Connection_enqueue("XM?CONNEC", 1000);
   
-  for (int i = 0; i < 10; i++) {
-    Connection_enqueue("XM?" + std::to_string(i));
-  }
   return true;
 }
 
