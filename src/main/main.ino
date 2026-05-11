@@ -9,7 +9,7 @@ AppState state;
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE client...");
-  Connection_init();
+  Connection_init(&state);
   SerialInterface_init(&state); // link the global variables to be changed by the interface handler
 }
 

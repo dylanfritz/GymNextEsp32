@@ -11,6 +11,17 @@ void scrollText(std::string inp, unsigned long scroll_del, bool red_only) {
     }
 }
 
+void scrollTextRev(std::string inp, unsigned long scroll_del, bool red_only) {
+    int width = red_only ? 4 : 6;
+    std::string pad(width, ' ');
+    std::string padded_text = pad + inp + pad;
+    for (int i = (int)padded_text.length()-width; i >= 0; i--) {
+        std::string frame = red_only ? "  " : "";
+        frame += padded_text.substr(i, width);
+        Connection_enqueue("XM?" + frame, scroll_del);
+    }
+}
+
 void bounceText(std::string inp, unsigned long scroll_del){
   std::string padded_text = "     " + inp + "     ";
   for(int i = 0; i < padded_text.length()-6; i++){

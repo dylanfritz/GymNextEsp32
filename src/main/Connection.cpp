@@ -1,4 +1,5 @@
 #include "Connection.h"
+#include "AppState.h"
 #include <string>
 #include <queue>
 
@@ -12,6 +13,11 @@ static bool doConnect    = false;
 static bool connected    = false;
 static bool doScan       = false;
 
+static bool reconnectOverride = false;
+
+static AppState* globalState;
+
+
 static BLEClient*               pClient     = nullptr;
 static BLERemoteCharacteristic* pWriteChar  = nullptr;
 static BLERemoteCharacteristic* pNotifyChar = nullptr;
@@ -19,15 +25,35 @@ static BLEAdvertisedDevice*     myDevice    = nullptr;
 
 volatile static bool gotInit = false;
 
+
 struct Command {
     std::string body;
     unsigned long delayMs;
+    CommandCallback cb;
 
-    Command(std::string b) : body(b), delayMs(0) {}
-    Command(std::string b, unsigned long d) : body(b), delayMs(d) {}
+    Command(std::string b) : body(b), delayMs(0), cb(nullptr) {}
+    Command(std::string b, unsigned long d) : body(b), delayMs(d), cb(nullptr) {}
+    Command(std::string b, unsigned long d, CommandCallback c) : body(b), delayMs(d), cb(c) {}
+    Command(std::string b, CommandCallback c) : body(b), delayMs(0), cb(c) {}
 };
 
 static std::queue<Command> commands;
+
+
+void setReconnOverride() {
+  reconnectOverride = true;
+}
+
+void clearReconnOverride() {
+  reconnectOverride = false;
+}
+
+void connDisconnect(){
+  if (pClient && connected) {
+    pClient->disconnect();
+  }
+}
+
 
 // ── Notify callback ──────────────────────────────────────────────────────────
 static void notifyCallback(BLERemoteCharacteristic* pChr,
@@ -125,17 +151,19 @@ static bool connectToServer() {
   Serial.println(gotInit ? " - Got notify" : " - No notify yet, continuing");
 
   connected = true;
+  globalState->manual_override = false;
 
   Connection_enqueue("FM?3,CONNEC", 3000);
   Connection_enqueue("ME");
   for (int i = 0; i < 10; i++) {
-    Connection_enqueue("XM?0000" + std::to_string(i));
+    Connection_enqueue("XM?" + std::to_string(i));
   }
   return true;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
-void Connection_init() {
+void Connection_init(AppState* state) {
+  globalState = state;
   BLEDevice::init("");
 
   BLEScan* pBLEScan = BLEDevice::getScan();
@@ -155,7 +183,7 @@ bool Connection_isConnected(){
 }
 
 void Connection_update() {
-  if (doConnect) {
+  if (doConnect && !reconnectOverride) {
     if (connectToServer()) Serial.println("Connected to BLE server.");
     else                   Serial.println("Connection failed.");
     doConnect = false;
@@ -168,18 +196,19 @@ void Connection_update() {
     Serial.print("Sending Command: ");
     Serial.println(curr.body.c_str());
     pWriteChar->writeValue((uint8_t*)curr.body.c_str(), curr.body.length(), false);
-
+    if (curr.cb) curr.cb();
     if (curr.delayMs > 0) delay(curr.delayMs);
   }
 
-  if (!connected && doScan) {
+  if (!connected && doScan && !reconnectOverride) {
     doScan = false;
     BLEDevice::getScan()->clearResults();
     BLEDevice::getScan()->start(0, false);
   }
 }
 
-void Connection_enqueue(std::string payload, unsigned long delayMs) {
+
+void Connection_enqueue(std::string payload, unsigned long delayMs, CommandCallback cb) {
   std::string body = payload.back() == ';' ? payload : payload + ";";
   size_t len = body.length();
   size_t i = 0;
@@ -189,7 +218,8 @@ void Connection_enqueue(std::string payload, unsigned long delayMs) {
     std::string chunk = body.substr(i, chunkSize);
 
     unsigned long chunkDelay = (len <= 20) ? delayMs : 0;
-    commands.push(Command(chunk, chunkDelay));
+    CommandCallback chunkCb = (len <= 20) ? cb : nullptr;
+    commands.push(Command(chunk, chunkDelay, chunkCb));
 
     i += chunkSize;
     len -= chunkSize;

@@ -46,6 +46,32 @@ void toggleBlueHandler(const JsonDocument &doc){
   *red_only = !(*red_only);
 }
 
+void sleepHandler(const JsonDocument &doc){
+  clearQueue();
+  *manual_override = true;
+  timerSetWelcomeMsg("sleep");
+  timerWelcomeMode();
+  timerSetWelcomeMsg("      ");
+  setReconnOverride();
+  timerRestart(true);
+}
+
+void sleepWakeHandler(const JsonDocument &doc){
+  clearReconnOverride();
+}
+
+void disconnectHandler(const JsonDocument &doc){
+  *manual_override = true;
+  clearQueue();
+  setReconnOverride();
+  connDisconnect();
+}
+
+void reconnectHandler(const JsonDocument &doc){
+  clearReconnOverride();
+}
+
+
 void SerialInterface_init(AppState* state){
   curr_state = state;
   current_msg = &(state->current_msg);
@@ -57,6 +83,10 @@ void SerialInterface_init(AppState* state){
   dispatch["RELEASE"] = releaseHandler;
   dispatch["CHANGE_MSG"] = changeMessageHandler;
   dispatch["TOGGLE_BLUE"] = toggleBlueHandler;
+  dispatch["SLEEP"] = sleepHandler;
+  dispatch["SLEEP_WAKE"] = sleepWakeHandler;
+  dispatch["DISCONNECT"] = disconnectHandler;
+  dispatch["RECONNECT"] = reconnectHandler;
 }
 
 void SerialInterface_update(){
