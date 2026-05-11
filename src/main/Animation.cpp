@@ -1,0 +1,39 @@
+#include "Connection.h"
+
+void scrollText(std::string inp, unsigned long scroll_del){
+  std::string padded_text = "      " + inp + "      ";
+  for(int i = 0; i < padded_text.length()-6; i++){
+    Connection_enqueue("XM?"+ padded_text.substr(i, 6), scroll_del); 
+  }
+}
+
+void bounceText(std::string inp, unsigned long scroll_del){
+  std::string padded_text = "     " + inp + "     ";
+  for(int i = 0; i < padded_text.length()-6; i++){
+    Connection_enqueue("XM?"+ padded_text.substr(i, 6), scroll_del); 
+  }
+  for(int i = padded_text.length()-6; i > 0; i--){// only show the last frame once on the next loop to account for generation delay
+    Connection_enqueue("XM?"+ padded_text.substr(i, 6), scroll_del); 
+  }
+}
+
+
+
+void flashText(std::string inp, unsigned long flash_del){
+  std::string empty_frame = "      ";
+  int num_full_frames = inp.length()/6;
+  int chars_in_last_frame = inp.length()%6;
+  if (inp.length() >= 6) {
+    for (int i = 0; i <= (int)inp.length() - 6; i += 6) {
+      Connection_enqueue("XM?" + inp.substr(i, 6), flash_del / 2);
+      Connection_enqueue("XM?" + empty_frame, flash_del / 2);
+    }
+  }
+  if (chars_in_last_frame > 0) {
+    std::string last_frame = "";
+    for (int j = 0; j < 6 - chars_in_last_frame; j++) last_frame += " ";
+    last_frame += inp.substr(num_full_frames * 6, chars_in_last_frame);
+    Connection_enqueue("XM?" + last_frame, flash_del / 2);
+    Connection_enqueue("XM?" + empty_frame, flash_del / 2);
+  }
+}
