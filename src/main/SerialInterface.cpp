@@ -71,6 +71,14 @@ void reconnectHandler(const JsonDocument &doc){
   clearReconnOverride();
 }
 
+void restartHandler(const JsonDocument &doc){
+  bool disconnect = doc["disconnect"] | false;
+  *manual_override = true;
+  clearQueue();
+  if (disconnect) setReconnOverride();
+  timerRestart(disconnect);
+}
+
 
 void SerialInterface_init(AppState* state){
   curr_state = state;
@@ -87,6 +95,7 @@ void SerialInterface_init(AppState* state){
   dispatch["SLEEP_WAKE"] = sleepWakeHandler;
   dispatch["DISCONNECT"] = disconnectHandler;
   dispatch["RECONNECT"] = reconnectHandler;
+  dispatch["RESTART"] = restartHandler;
 }
 
 void SerialInterface_update(){
