@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-void timerMessage(const std::string &txt, unsigned long ms);
+void timerMessage(const std::string &txt, unsigned long ms = 0);
 
 void timerSetWelcomeMsg(const std::string &txt);
 
