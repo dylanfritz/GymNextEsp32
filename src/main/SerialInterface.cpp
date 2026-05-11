@@ -2,6 +2,7 @@
 #include "Connection.h"
 #include "Animation.h"
 #include "TimerDevice.h"
+#include "AppState.h"
 #include <unordered_map>
 #include <ArduinoJson.h>
 
@@ -9,9 +10,11 @@ using CommandHandler = void(*)(const JsonDocument&); //Alias functionpointer for
 
 static std::unordered_map<std::string, CommandHandler> dispatch;
 
+static AppState* curr_state;
+
 static std::string* current_msg;
 static bool* manual_override;
-static bool change_msg = false;
+static bool* red_only;
 
 void adminHandler(const JsonDocument &doc){
   *manual_override = true;
@@ -38,14 +41,22 @@ void changeMessageHandler(const JsonDocument &doc){
   *current_msg = doc["text"] | " ";
 }
 
-void SerialInterface_init(std::string* msg, bool* m_override){
-  current_msg = msg;
-  manual_override = m_override;
+void toggleBlueHandler(const JsonDocument &doc){
+  clearQueue();
+  *red_only = !(*red_only);
+}
+
+void SerialInterface_init(AppState* state){
+  curr_state = state;
+  current_msg = &(state->current_msg);
+  manual_override = &(state->manual_override);
+  red_only = &(state->red_only);
 
   dispatch["SCROLL"] = scrollHandler;
   dispatch["ADMIN"]  = adminHandler;
   dispatch["RELEASE"] = releaseHandler;
   dispatch["CHANGE_MSG"] = changeMessageHandler;
+  dispatch["TOGGLE_BLUE"] = toggleBlueHandler;
 }
 
 void SerialInterface_update(){

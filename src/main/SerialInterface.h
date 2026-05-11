@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "AppState.h"
 
-void SerialInterface_init(std::string* msg, bool* m_override);
+void SerialInterface_init(AppState* state);
 void SerialInterface_update();
