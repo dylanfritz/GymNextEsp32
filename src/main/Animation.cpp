@@ -1,4 +1,11 @@
+#include <string>
 #include "Connection.h"
+#include "TimerDevice.h"
+#include "AnimTypes.h"
+
+std::string scrollGenerator(AnimState& state){
+
+}
 
 void scrollText(std::string inp, unsigned long scroll_del, bool red_only) {
     int width = red_only ? 4 : 6;
